@@ -1,0 +1,170 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String   @id @default(uuid())
+  email         String   @unique
+  passwordHash  String
+  role          Role     @default(USER)
+  firstName     String?
+  lastName      String?
+  department    String?
+  mfaEnabled    Boolean  @default(false)
+  mfaSecret     String?
+  isActive      Boolean  @default(true)
+  lastLoginAt   DateTime?
+  refreshToken  String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  // Relations
+  incidents         Incident[]  @relation("ReportedIncidents")
+  assignedIncidents Incident[]  @relation("AssignedIncidents")
+  events            Event[]
+  reports           Report[]
+  auditLogs         AuditLog[]
+  comments          Comment[]
+}
+
+model Incident {
+  id          String   @id @default(uuid())
+  title       String
+  description String
+  severity    Severity @default(MEDIUM)
+  status      IncidentStatus @default(NEW)
+  type        IncidentType
+  source      String
+  sourceIP    String?
+  resolvedAt  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  reporterId  String
+  reporter    User      @relation("ReportedIncidents", fields: [reporterId], references: [id])
+  assignedTo  String?
+  assignee    User?     @relation("AssignedIncidents", fields: [assignedTo], references: [id])
+  events      Event[]
+  comments    Comment[]
+}
+
+model Event {
+  id          String   @id @default(uuid())
+  type        String
+  source      String
+  severity    Severity @default(LOW)
+  description String
+  details     Json?
+  createdAt   DateTime @default(now())
+  
+  // Relations
+  incidentId  String?
+  incident    Incident? @relation(fields: [incidentId], references: [id])
+  userId      String?
+  user        User?     @relation(fields: [userId], references: [id])
+}
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  action      String
+  details     Json?
+  ip          String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+  
+  // Relations
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id])
+}
+
+model Report {
+  id          String   @id @default(uuid())
+  title       String
+  content     Json?
+  type        String
+  format      String
+  status      String   @default("PENDING")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+}
+
+model Comment {
+  id          String   @id @default(uuid())
+  content     String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  incidentId  String
+  incident    Incident @relation(fields: [incidentId], references: [id])
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+}
+
+model ThreatIntel {
+  id          String   @id @default(uuid())
+  type        String
+  value       String
+  description String
+  confidence  Int
+  source      String
+  isActive    Boolean  @default(true)
+  expiresAt   DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model ComplianceReport {
+  id          String   @id @default(uuid())
+  framework   String
+  status      String
+  score       Float
+  details     Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+enum Role {
+  ADMIN
+  SECURITY_ANALYST
+  COMPLIANCE_OFFICER
+  AUDITOR
+  USER
+}
+
+enum Severity {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+  INFO
+}
+
+enum IncidentStatus {
+  NEW
+  INVESTIGATING
+  CONTAINED
+  RESOLVED
+  CLOSED
+}
+
+enum IncidentType {
+  MALWARE
+  PHISHING
+  DDOS
+  BRUTE_FORCE
+  DATA_BREACH
+  RANSOMWARE
+  INSIDER_THREAT
+  OTHER
+}
