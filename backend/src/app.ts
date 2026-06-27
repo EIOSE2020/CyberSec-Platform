@@ -1,7 +1,9 @@
-﻿import express from 'express';
+import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
+import { exec } from 'child_process';
+import { promisify } from 'util';
 
 // Importer les routes
 import authRoutes from './routes/auth';
@@ -18,6 +20,7 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+const execAsync = promisify(exec);
 
 // ============================================
 // MIDDLEWARE (ordre important)
@@ -46,7 +49,34 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // ============================================
-// ROUTES
+// ROUTES D'INITIALISATION
+// ============================================
+
+// Route pour initialiser la base de données (migrations)
+app.get('/api/init-db', async (req, res) => {
+  try {
+    console.log('🔄 Exécution des migrations Prisma...');
+    const { stdout, stderr } = await execAsync('npx prisma migrate deploy');
+    console.log('✅ Migrations exécutées:', stdout);
+    res.json({
+      success: true,
+      message: 'Migrations exécutées avec succès',
+      output: stdout,
+      errors: stderr
+    });
+  } catch (error: any) {
+    console.error('❌ Erreur migrations:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      output: error.stdout,
+      errors: error.stderr
+    });
+  }
+});
+
+// ============================================
+// ROUTES PRINCIPALES
 // ============================================
 
 // Routes publiques
@@ -110,16 +140,17 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 // ============================================
 
 app.listen(PORT, () => {
-  console.log(' Backend démarré sur http://localhost:' + PORT);
-  console.log(' Health: http://localhost:' + PORT + '/api/health');
-  console.log(' Auth: http://localhost:' + PORT + '/api/auth');
-  console.log(' Blockchain: http://localhost:' + PORT + '/api/blockchain/stats');
-  console.log(' Zero Trust: http://localhost:' + PORT + '/api/zerotrust/status');
-  console.log(' XDR: http://localhost:' + PORT + '/api/xdr/alerts');
-  console.log(' SOAR: http://localhost:' + PORT + '/api/soar/playbooks');
-  console.log(' SIEM: http://localhost:' + PORT + '/api/siem/stats');
-  console.log(' Threat Hunting: http://localhost:' + PORT + '/api/threathunting/queries');
-  console.log(' Compliance: http://localhost:' + PORT + '/api/compliance/status');
+  console.log('🚀 Backend démarré sur http://localhost:' + PORT);
+  console.log('📊 Health: http://localhost:' + PORT + '/api/health');
+  console.log('🔐 Auth: http://localhost:' + PORT + '/api/auth');
+  console.log('🗄️ Init DB: http://localhost:' + PORT + '/api/init-db');
+  console.log('⛓️ Blockchain: http://localhost:' + PORT + '/api/blockchain/stats');
+  console.log('🛡️ Zero Trust: http://localhost:' + PORT + '/api/zerotrust/status');
+  console.log('🔍 XDR: http://localhost:' + PORT + '/api/xdr/alerts');
+  console.log('🤖 SOAR: http://localhost:' + PORT + '/api/soar/playbooks');
+  console.log('📊 SIEM: http://localhost:' + PORT + '/api/siem/stats');
+  console.log('🔎 Threat Hunting: http://localhost:' + PORT + '/api/threathunting/queries');
+  console.log('📋 Compliance: http://localhost:' + PORT + '/api/compliance/status');
 });
 
 export default app;

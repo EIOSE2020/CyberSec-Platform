@@ -7,6 +7,8 @@ const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
 const helmet_1 = __importDefault(require("helmet"));
 const dotenv_1 = __importDefault(require("dotenv"));
+const child_process_1 = require("child_process");
+const util_1 = require("util");
 // Importer les routes
 const auth_1 = __importDefault(require("./routes/auth"));
 const blockchainRoutes_1 = __importDefault(require("./routes/blockchainRoutes"));
@@ -20,6 +22,7 @@ const admin_1 = __importDefault(require("./routes/admin"));
 dotenv_1.default.config();
 const app = (0, express_1.default)();
 const PORT = process.env.PORT || 5000;
+const execAsync = (0, util_1.promisify)(child_process_1.exec);
 // ============================================
 // MIDDLEWARE (ordre important)
 // ============================================
@@ -43,7 +46,33 @@ app.use((0, helmet_1.default)({
 app.use(express_1.default.json());
 app.use(express_1.default.urlencoded({ extended: true }));
 // ============================================
-// ROUTES
+// ROUTES D'INITIALISATION
+// ============================================
+// Route pour initialiser la base de données (migrations)
+app.get('/api/init-db', async (req, res) => {
+    try {
+        console.log('🔄 Exécution des migrations Prisma...');
+        const { stdout, stderr } = await execAsync('npx prisma migrate deploy');
+        console.log('✅ Migrations exécutées:', stdout);
+        res.json({
+            success: true,
+            message: 'Migrations exécutées avec succès',
+            output: stdout,
+            errors: stderr
+        });
+    }
+    catch (error) {
+        console.error('❌ Erreur migrations:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message,
+            output: error.stdout,
+            errors: error.stderr
+        });
+    }
+});
+// ============================================
+// ROUTES PRINCIPALES
 // ============================================
 // Routes publiques
 app.use('/api/auth', auth_1.default);
@@ -98,15 +127,16 @@ app.use((err, req, res, next) => {
 // DÉMARRAGE
 // ============================================
 app.listen(PORT, () => {
-    console.log(' Backend démarré sur http://localhost:' + PORT);
-    console.log(' Health: http://localhost:' + PORT + '/api/health');
-    console.log(' Auth: http://localhost:' + PORT + '/api/auth');
-    console.log(' Blockchain: http://localhost:' + PORT + '/api/blockchain/stats');
-    console.log(' Zero Trust: http://localhost:' + PORT + '/api/zerotrust/status');
-    console.log(' XDR: http://localhost:' + PORT + '/api/xdr/alerts');
-    console.log(' SOAR: http://localhost:' + PORT + '/api/soar/playbooks');
-    console.log(' SIEM: http://localhost:' + PORT + '/api/siem/stats');
-    console.log(' Threat Hunting: http://localhost:' + PORT + '/api/threathunting/queries');
-    console.log(' Compliance: http://localhost:' + PORT + '/api/compliance/status');
+    console.log('🚀 Backend démarré sur http://localhost:' + PORT);
+    console.log('📊 Health: http://localhost:' + PORT + '/api/health');
+    console.log('🔐 Auth: http://localhost:' + PORT + '/api/auth');
+    console.log('🗄️ Init DB: http://localhost:' + PORT + '/api/init-db');
+    console.log('⛓️ Blockchain: http://localhost:' + PORT + '/api/blockchain/stats');
+    console.log('🛡️ Zero Trust: http://localhost:' + PORT + '/api/zerotrust/status');
+    console.log('🔍 XDR: http://localhost:' + PORT + '/api/xdr/alerts');
+    console.log('🤖 SOAR: http://localhost:' + PORT + '/api/soar/playbooks');
+    console.log('📊 SIEM: http://localhost:' + PORT + '/api/siem/stats');
+    console.log('🔎 Threat Hunting: http://localhost:' + PORT + '/api/threathunting/queries');
+    console.log('📋 Compliance: http://localhost:' + PORT + '/api/compliance/status');
 });
 exports.default = app;
